@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>K线艺术 - KlineArt</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { 
+            background: #0a0a0f; 
+            color: #fff;
+            font-family: 'Segoe UI', sans-serif;
+            overflow: hidden;
+        }
+        canvas { display: block; }
+        .controls {
+            position: fixed;
+            top: 20px;
+            left: 20px;
+            z-index: 100;
+            background: rgba(20,20,30,0.9);
+            padding: 20px;
+            border-radius: 12px;
+            border: 1px solid rgba(100,100,255,0.3);
+        }
+        h1 {
+            font-size: 24px;
+            margin-bottom: 15px;
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        button {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border: none;
+            padding: 10px 20px;
+            color: white;
+            border-radius: 8px;
+            cursor: pointer;
+            font-size: 14px;
+            margin: 5px;
+            transition: transform 0.2s;
+        }
+        button:hover { transform: scale(1.05); }
+        select {
+            background: #1a1a2e;
+            border: 1px solid #667eea;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 6px;
+            margin: 5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <div class="controls">
+        <h1>✨ K线艺术</h1>
+        <select id="style">
+            <option value="particles">粒子流动</option>
+            <option value="spiral">螺旋星云</option>
+            <option value="crystal">晶体生长</option>
+            <option value="wave">音波可视化</option>
+        </select>
+        <button onclick="generate()">🎨 生成新艺术</button>
+        <button onclick="save()">💾 保存图片</button>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        function resize() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        resize();
+        window.addEventListener('resize', resize);
+
+        // 生成模拟K线数据
+        function generateKlineData(count = 200) {
+            const data = [];
+            let price = 100;
+            for (let i = 0; i < count; i++) {
+                const change = (Math.random() - 0.48) * 5;
+                price += change;
+                const high = price + Math.random() * 3;
+                const low = price - Math.random() * 3;
+                const open = price + (Math.random() - 0.5) * 2;
+                const close = price + (Math.random() - 0.5) * 2;
+                const volume = Math.random() * 100 + 50;
+                data.push({ open, high, low, close, volume, price });
+            }
+            return data;
+        }
+
+        let data = generateKlineData();
+        let style = 'particles';
+        let time = 0;
+
+        document.getElementById('style').addEventListener('change', (e) => {
+            style = e.target.value;
+        });
+
+        function generate() {
+            data = generateKlineData();
+        }
+
+        function save() {
+            const link = document.createElement('a');
+            link.download = 'kline-art-' + Date.now() + '.png';
+            link.href = canvas.toDataURL();
+            link.click();
+        }
+
+        function drawParticles() {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            
+            data.forEach((d, i) => {
+                const angle = (i / data.length) * Math.PI * 4 + time * 0.01;
+                const radius = 100 + d.price * 3 + Math.sin(time * 0.02 + i * 0.1) * 50;
+                const x = cx + Math.cos(angle) * radius;
+                const y = cy + Math.sin(angle) * radius;
+                
+                const hue = (i / data.length) * 60 + 240;
+                const alpha = 0.3 + d.volume / 200;
+                const size = 2 + Math.abs(d.close - d.open) * 2;
+                
+                ctx.beginPath();
+                ctx.arc(x, y, size, 0, Math.PI * 2);
+                ctx.fillStyle = `hsla(${hue}, 70%, 60%, ${alpha})`;
+                ctx.fill();
+                
+                // 连线
+                if (i > 0) {
+                    const prevAngle = ((i-1) / data.length) * Math.PI * 4 + time * 0.01;
+                    const prevRadius = 100 + data[i-1].price * 3 + Math.sin(time * 0.02 + (i-1) * 0.1) * 50;
+                    const px = cx + Math.cos(prevAngle) * prevRadius;
+                    const py = cy + Math.sin(prevAngle) * prevRadius;
+                    
+                    ctx.beginPath();
+                    ctx.moveTo(px, py);
+                    ctx.lineTo(x, y);
+                    ctx.strokeStyle = `hsla(${hue}, 70%, 50%, 0.2)`;
+                    ctx.lineWidth = 1;
+                    ctx.stroke();
+                }
+            });
+        }
+
+        function drawSpiral() {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            
+            data.forEach((d, i) => {
+                const t = i / data.length;
+                const angle = t * Math.PI * 8 + time * 0.005;
+                const radius = t * 300 + d.price * 2;
+                const x = cx + Math.cos(angle) * radius;
+                const y = cy + Math.sin(angle) * radius;
+                
+                const isUp = d.close > d.open;
+                const hue = isUp ? 140 : 350;
+                const size = 3 + Math.abs(d.close - d.open) * 3;
+                
+                const gradient = ctx.createRadialGradient(x, y, 0, x, y, size * 2);
+                gradient.addColorStop(0, `hsla(${hue}, 80%, 60%, 0.8)`);
+                gradient.addColorStop(1, `hsla(${hue}, 80%, 40%, 0)`);
+                
+                ctx.beginPath();
+                ctx.arc(x, y, size * 2, 0, Math.PI * 2);
+                ctx.fillStyle = gradient;
+                ctx.fill();
+            });
+        }
+
+        function drawCrystal() {
+            const cx = canvas.width / 2;
+            const cy = canvas.height / 2;
+            
+            data.forEach((d, i) => {
+                const sides = 6;
+                const angle = (i / data.length) * Math.PI * 2;
+                const radius = 50 + d.price * 2.5;
+                
+                ctx.save();
+                ctx.translate(cx, cy);
+                ctx.rotate(angle + time * 0.002);
+                
+                const hue = (i / data.length) * 120 + 180;
+                ctx.beginPath();
+                for (let j = 0; j <= sides; j++) {
+                    const a = (j / sides) * Math.PI * 2;
+                    const r = radius * (0.8 + Math.sin(time * 0.01 + i + j) * 0.2);
+                    const x = Math.cos(a) * r;
+                    const y = Math.sin(a) * r;
+                    if (j === 0) ctx.moveTo(x, y);
+                    else ctx.lineTo(x, y);
+                }
+                ctx.closePath();
+                ctx.strokeStyle = `hsla(${hue}, 70%, 60%, 0.5)`;
+                ctx.lineWidth = 1.5;
+                ctx.stroke();
+                
+                ctx.restore();
+            });
+        }
+
+        function drawWave() {
+            const baseY = canvas.height / 2;
+            
+            data.forEach((d, i) => {
+                const x = (i / data.length) * canvas.width;
+                const y1 = baseY + Math.sin(i * 0.1 + time * 0.02) * d.price;
+                const y2 = baseY + Math.sin(i * 0.1 + time * 0.02 + 0.5) * d.price * 0.8;
+                
+                const hue = 200 + d.volume;
+                ctx.beginPath();
+                ctx.moveTo(x, y1);
+                ctx.lineTo(x + 5, y2);
+                ctx.strokeStyle = `hsla(${hue % 360}, 70%, 50%, 0.6)`;
+                ctx.lineWidth = 2 + Math.abs(d.close - d.open);
+                ctx.stroke();
+            });
+        }
+
+        function animate() {
+            time++;
+            
+            // 淡入效果
+            ctx.fillStyle = 'rgba(10, 10, 15, 0.08)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            
+            switch(style) {
+                case 'particles': drawParticles(); break;
+                case 'spiral': drawSpiral(); break;
+                case 'crystal': drawCrystal(); break;
+                case 'wave': drawWave(); break;
+            }
+            
+            requestAnimationFrame(animate);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
